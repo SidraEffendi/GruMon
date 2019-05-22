@@ -2,6 +2,7 @@ package com.example.grumon;
 
 import android.Manifest;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.Location;
@@ -69,6 +70,8 @@ public class MainActivity extends AppCompatActivity
 
                 Toast.makeText(getApplicationContext(),"Yes clicked",Toast.LENGTH_SHORT).show();
                 //start scanning the for WiFi APs. If it fails suspend the app process and inform user of failure.
+                Intent myIntent = new Intent(MainActivity.this,WiFiAccessPointsScanner.class);
+                startService(myIntent);
 
 
                 // ask user to mark pin location on map and enter the level they are at.
