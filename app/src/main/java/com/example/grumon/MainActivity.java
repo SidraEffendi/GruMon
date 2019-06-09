@@ -66,17 +66,23 @@ public class MainActivity extends AppCompatActivity
         Button1=findViewById(R.id.Button1);
         Button1.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
+                // Ask for location permission bcoz Wifi scan requires it.
+                int permissions_code = 42;
+                String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_WIFI_STATE, Manifest.permission.CHANGE_WIFI_STATE};
+
+                ActivityCompat.requestPermissions(MainActivity.this, permissions, permissions_code);
 
 
-                Toast.makeText(getApplicationContext(),"Yes clicked",Toast.LENGTH_SHORT).show();
+
+                //Toast.makeText(getApplicationContext(),"Yes clicked",Toast.LENGTH_SHORT).show();
                 //start scanning the for WiFi APs. If it fails suspend the app process and inform user of failure.
                 Intent myIntent = new Intent(MainActivity.this,WiFiAccessPointsScanner.class);
                 startService(myIntent);
 
 
                 // ask user to mark pin location on map and enter the level they are at.
-                showMap();
-    //                requestPermission(Manifest.permission.ACCESS_FINE_LOCATION,LOCATION_REQUEST_CODE);
+//                showMap();
+//                    requestPermission(Manifest.permission.ACCESS_FINE_LOCATION,LOCATION_REQUEST_CODE);
 
 
             }
@@ -121,14 +127,14 @@ public class MainActivity extends AppCompatActivity
         .findFragmentById(R.id.map);
         mapFrag.getMapAsync(this);
 
-        Toast.makeText(getApplicationContext(),"Map ready",Toast.LENGTH_SHORT).show();
+        //Toast.makeText(getApplicationContext(),"Map ready",Toast.LENGTH_SHORT).show();
 
         Done = findViewById(R.id.Done);
         Done.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
 
 
-                Toast.makeText(getApplicationContext(),"Done clicked",Toast.LENGTH_SHORT).show();
+                //Toast.makeText(getApplicationContext(),"Done clicked",Toast.LENGTH_SHORT).show();
                 takeLevelInput();
 
 
@@ -296,6 +302,8 @@ public class MainActivity extends AppCompatActivity
 
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION=99;
+    public static final int MY_PERMISSIONS_REQUEST_WIFI_STATE=98;
+    public static final int MY_PERMISSIONS_REQUEST_CHANGE_WIFI_STATE=97;
     private void checkLocationPermission(){
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) !=PackageManager.PERMISSION_GRANTED){
 
