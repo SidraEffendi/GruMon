@@ -8,8 +8,8 @@
 
     <EditText
         android:id="@+id/editText1"
-        android:layout_width="274dp"
-        android:layout_height="55dp"
+        android:layout_width="272dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
         android:layout_marginStart="68dp"
@@ -17,7 +17,7 @@
         android:layout_marginTop="8dp"
         android:ems="10"
         android:inputType="text"
-        android:text="Drag Marker to your position."
+        android:text="Drag the marker to your position."
         app:layout_constraintBottom_toTopOf="@+id/map"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">

@@ -3,20 +3,22 @@ package com.example.grumon;
 import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -36,6 +38,9 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+
+import static com.example.grumon.FileHelper.saveToFile;
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 
 
@@ -53,6 +58,16 @@ public class MainActivity extends AppCompatActivity
     Marker mCurrLocationMarker;
     LocationCallback mLocationCallback;
 
+    public static SharedPreferences app_preferences;
+    public static SharedPreferences.OnSharedPreferenceChangeListener sharedPreferenceChangeListener;
+    public static SharedPreferences.Editor preferencesEditor;
+    public static String LATITUDE;
+    public static String LONGITUDE;
+    public static String LEVEL;
+    public static Boolean LOC_ACQUIRED;
+    public static Boolean SCAN_ACQUIRED;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState){
@@ -61,17 +76,47 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //start thread to coordinated between the two different tasks
+//        OperationComplete op = new OperationComplete();
+//        op.execute();
+
+        // Get the app's shared preferences to keep track of data entered by user.
+        app_preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        preferencesEditor = app_preferences.edit();
+        sharedPreferenceChangeListener =
+                new SharedPreferences.OnSharedPreferenceChangeListener() {
+            public void onSharedPreferenceChanged(SharedPreferences app_preferences, String key) {
+                    Log.i("scan_pref", key);
+                    if (key.equals("LOC_ACQUIRED")|| key.equals("SCAN_ACQUIRED")){
+                        Log.i("scan_pref", key);
+                        if(LOC_ACQUIRED == TRUE && SCAN_ACQUIRED == TRUE){
+                            saveToFile();
+                        }
+                    }
+            }
+        };
+
+        app_preferences.registerOnSharedPreferenceChangeListener(sharedPreferenceChangeListener);
+
+
+        LATITUDE = app_preferences.getString("LATITUDE","");
+        LONGITUDE = app_preferences.getString("LONGITUDE","");
+        LEVEL = app_preferences.getString("LEVEL","");
+        LOC_ACQUIRED = app_preferences.getBoolean("LOC_ACQUIRED", FALSE);
+        SCAN_ACQUIRED = app_preferences.getBoolean("SCAN_ACQUIRED", FALSE); //Set to true if scan is successful in wifiAPscanner file
+
+
+        // Ask for location and storage permission .
+        int permissions_code = 42;
+        String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_WIFI_STATE,  Manifest.permission.WRITE_EXTERNAL_STORAGE};
+
+        ActivityCompat.requestPermissions(MainActivity.this, permissions, permissions_code);
+
 
         //take input from the user about its current activity
         Button1=findViewById(R.id.Button1);
         Button1.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
-                // Ask for location permission bcoz Wifi scan requires it.
-                int permissions_code = 42;
-                String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_WIFI_STATE, Manifest.permission.CHANGE_WIFI_STATE};
-
-                ActivityCompat.requestPermissions(MainActivity.this, permissions, permissions_code);
-
 
 
                 //Toast.makeText(getApplicationContext(),"Yes clicked",Toast.LENGTH_SHORT).show();
@@ -81,9 +126,7 @@ public class MainActivity extends AppCompatActivity
 
 
                 // ask user to mark pin location on map and enter the level they are at.
-//                showMap();
-//                    requestPermission(Manifest.permission.ACCESS_FINE_LOCATION,LOCATION_REQUEST_CODE);
-
+                showMap();
 
             }
         });
@@ -109,13 +152,16 @@ public class MainActivity extends AppCompatActivity
                 mCurrentLocation = locationResult.getLastLocation();
                 //mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
 
+                //store the current lat, long to the shared preferences
+                LATITUDE = app_preferences.getString("LATITUDE", Double.toString(mCurrentLocation.getLatitude()));
+                Log.i("scan_lat", LATITUDE);
+                LONGITUDE = app_preferences.getString("LONGITUDE", Double.toString(mCurrentLocation.getLongitude()));
+                Log.i("scan_lon", LONGITUDE);
+
                 updateLocationUI();
             }
         };
     }
-
-
-
 
     public void showMap(){
         //Displays the google map in a fragment
@@ -127,14 +173,10 @@ public class MainActivity extends AppCompatActivity
         .findFragmentById(R.id.map);
         mapFrag.getMapAsync(this);
 
-        //Toast.makeText(getApplicationContext(),"Map ready",Toast.LENGTH_SHORT).show();
-
         Done = findViewById(R.id.Done);
         Done.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
 
-
-                //Toast.makeText(getApplicationContext(),"Done clicked",Toast.LENGTH_SHORT).show();
                 takeLevelInput();
 
 
@@ -144,7 +186,7 @@ public class MainActivity extends AppCompatActivity
 
     public void takeLevelInput(){
         Toast.makeText(getApplicationContext(),"Level Input",Toast.LENGTH_SHORT).show();
-        // creating the EditText widget programatically
+        // creating the EditText widget progamatically
         final EditText editText = new EditText(MainActivity.this);
         editText.setInputType(InputType.TYPE_CLASS_NUMBER);
         editText.setRawInputType(Configuration.KEYBOARD_12KEY);
@@ -159,8 +201,21 @@ public class MainActivity extends AppCompatActivity
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
-                        Toast.makeText(getApplicationContext(),editText.getText(),Toast.LENGTH_SHORT).show();
+                        if(editText.getText().length() == 0){
+                            Toast.makeText(getApplicationContext(),"Enter a number.",Toast.LENGTH_SHORT).show();
+                        }
+                        else {
+                            LEVEL = app_preferences.getString("LEVEL", editText.getText().toString());
+                            Log.i("Floor", LEVEL);
+                            LOC_ACQUIRED = app_preferences.getBoolean("LOC_ACQUIRED", TRUE);
+                            preferencesEditor.putBoolean("LOC_ACQUIRED", TRUE);
+                            preferencesEditor.commit();
+                            //Toast.makeText(getApplicationContext(),editText.getText().toString(),Toast.LENGTH_SHORT).show();
+                            //dialog.dismiss();
+                        }
+                        //Toast.makeText(getApplicationContext(),editText.getText(),Toast.LENGTH_SHORT).show();
                         setContentView(R.layout.activity_main);
+                        //LOC_ACQUIRED = app_preferences.getBoolean("LOC_ACQUIRED", TRUE);
 
                     }
                 })
@@ -169,6 +224,8 @@ public class MainActivity extends AppCompatActivity
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
                         // removes the AlertDialog in the screen
+                        //ToDO- test dialog.dismiss
+                        dialog.dismiss();
                     }
                 })
                 .create();
@@ -252,6 +309,11 @@ public class MainActivity extends AppCompatActivity
         markerOptions.draggable(TRUE);
         mCurrLocationMarker=mGoogleMap.addMarker(markerOptions);
 
+        //store the current lat, long to the shared preferences
+        LATITUDE = app_preferences.getString("LATITUDE", Double.toString(mCurrentLocation.getLatitude()));
+        LONGITUDE = app_preferences.getString("LONGITUDE", Double.toString(mCurrentLocation.getLongitude()));
+        Log.i("position", LATITUDE +","+ LONGITUDE);
+
         double num = 0.001;
         //CircleOptions addCircle=new CircleOptions().center(latLng).radius(radiusInMeters).fillColor(shadeColor).strokeColor(strokeColor).strokeWidth(8);
        // mCircle=mGoogleMap.addCircle(addCircle);
@@ -275,13 +337,12 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onMarkerDrag(Marker marker) {
         //tvLocInfo.setText("Marker " + marker.getId() + " Drag@" + marker.getPosition());
-        Toast.makeText(this,"dragging",Toast.LENGTH_LONG).show();
+        //Toast.makeText(this,"dragging",Toast.LENGTH_LONG).show();
     }
 
     @Override
     public void onMarkerDragEnd(Marker marker) {
        //tvLocInfo.setText("Marker " + marker.getId() + " DragEnd");
-        Toast.makeText(this,"drag end",Toast.LENGTH_LONG).show();
         LatLng latLng=new LatLng(marker.getPosition().latitude,marker.getPosition().longitude);
         mGoogleMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
         mGoogleMap.animateCamera(CameraUpdateFactory.zoomTo(20));
@@ -293,17 +354,11 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onMarkerDragStart(Marker marker) {
         //tvLocInfo.setText("Marker " + marker.getId() + " DragStart");
-        Toast.makeText(this,"drag start",Toast.LENGTH_LONG).show();
 
     }
 
 
-
-
-
     public static final int MY_PERMISSIONS_REQUEST_LOCATION=99;
-    public static final int MY_PERMISSIONS_REQUEST_WIFI_STATE=98;
-    public static final int MY_PERMISSIONS_REQUEST_CHANGE_WIFI_STATE=97;
     private void checkLocationPermission(){
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) !=PackageManager.PERMISSION_GRANTED){
 
@@ -348,7 +403,6 @@ public class MainActivity extends AppCompatActivity
                     if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==PackageManager.PERMISSION_GRANTED){
                         mGoogleMap.setMyLocationEnabled(true);
                     }
-
                 }
                 else{
 
@@ -371,93 +425,5 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
+
 }
-
-//have a text view with a question and two buttons with yes and no instead of a dialogue box.
-
-
-
-//@Override
-//public void onRequestPermissionsResult(int requestCode,
-//        String permissions[],int[]grantResults){
-//
-//        switch(requestCode){
-//        case LOCATION_REQUEST_CODE:{
-//
-//        if(grantResults.length==0
-//        ||grantResults[0]!=
-//        PackageManager.PERMISSION_GRANTED){
-//        Toast.makeText(this,
-//        "Unable to show location - permission required",
-//        Toast.LENGTH_LONG).show();
-//        }else{
-//
-//        SupportMapFragment mapFragment=
-//        (SupportMapFragment)getSupportFragmentManager()
-//        .findFragmentById(R.id.map);
-//        mapFragment.getMapAsync(this);
-//        }
-//        }
-//        }
-//
-
-//
-//    /**
-//     * Manipulates the map when it's available.
-//     * The API invokes this callback when the map is ready to be used.
-//     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-//     * we just add a marker near Sydney, Australia.
-//     * If Google Play services is not installed on the device, the user receives a prompt to install
-//     * Play services inside the SupportMapFragment. The API invokes this method after the user has
-//     * installed Google Play services and returned to the app.
-//     */
-//    @Override
-//    public void onMapReady(GoogleMap googleMap) {
-//
-//        // Add a marker in Sydney, Australia,
-//        // and move the map's camera to the same location.
-////        LatLng sydney = new LatLng(-33.852, 151.211);
-////        googleMap.addMarker(new MarkerOptions().position(sydney)
-////                .title("Marker in Sydney"));
-////        googleMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
-//        Toast.makeText(getApplicationContext(), "Mark your Position", Toast.LENGTH_SHORT).show();
-//
-//        if (googleMap != null) {
-//            int permission = ContextCompat.checkSelfPermission(this,
-//                    Manifest.permission.ACCESS_FINE_LOCATION);
-//
-//            if (permission == PackageManager.PERMISSION_GRANTED) {
-//                googleMap.setMyLocationEnabled(true);
-//
-//                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-//
-//                Marker pos_Marker =  googleMap.addMarker(new MarkerOptions().position(starting).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_laumcher)).title("Starting Location").draggable(false));
-//
-//                pos_Marker.showInfoWindow();
-//                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(START_locationpoint, 10));
-//                googleMap.animateCamera(CameraUpdateFactory.zoomTo(15),2000, null);
-//            } else {
-//                requestPermission(
-//                        Manifest.permission.ACCESS_FINE_LOCATION,
-//                        LOCATION_REQUEST_CODE);
-//            }
-//        }
-//    }
-
-//
-
-
-//    @Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//        // Handle action bar item clicks here. The action bar will
-//        // automatically handle clicks on the Home/Up button, so long
-//        // as you specify a parent activity in AndroidManifest.xml.
-//        int id = item.getItemId();
-//
-//        //noinspection SimplifiableIfStatement
-//        if (id == R.id.action_settings) {
-//            return true;
-//        }
-//
-//        return super.onOptionsItemSelected(item);
-//    }
