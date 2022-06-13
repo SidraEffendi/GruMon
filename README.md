@@ -1,5 +1,6 @@
 # GruMon
-Geolocation data collection app
+
+Geolocation data collection android app.
 
 # About
 GruMon is an app inspired by the paper 'GruMon: fast and accurate group monitoring for heterogeneous urban spaces'. 
